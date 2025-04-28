@@ -86,6 +86,7 @@ class WriteCallback;
 struct JobContext;
 struct ExternalSstFileInfo;
 struct MemTableInfo;
+class DBElastic;
 
 // Class to maintain directories for all database paths other than main one.
 class Directories {
@@ -1750,6 +1751,8 @@ class DBImpl : public DB {
   friend class CompactionServiceTest_PreservedOptionsLocalCompaction_Test;
   friend class CompactionServiceTest_PreservedOptionsRemoteCompaction_Test;
 #endif
+
+  friend class DBElastic;
 
   struct CompactionState;
   struct PrepickedCompaction;
