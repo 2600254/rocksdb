@@ -332,9 +332,11 @@ LIB_SOURCES =                                                   \
   utilities/types_util.cc                                       \
   utilities/wal_filter.cc                                       \
   utilities/write_batch_with_index/write_batch_with_index.cc    \
-  utilities/write_batch_with_index/write_batch_with_index_internal.cc    \
+  utilities/write_batch_with_index/write_batch_with_index_internal.cc
+
+ELASTIC_LIB_SOURCES =                                           \
   db/elastic/db_elastic.cc                                      \
-  db/elastic/elastic_lsm.cc                                \
+  db/elastic/elastic_lsm.cc                                     \
 
 ifeq (,$(shell $(CXX) -fsyntax-only -maltivec -xc /dev/null 2>&1))
 LIB_SOURCES_ASM =\

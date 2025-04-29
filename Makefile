@@ -606,6 +606,7 @@ LDFLAGS += $(PLATFORM_LDFLAGS)
 
 LIB_OBJECTS = $(patsubst %.cc, $(OBJ_DIR)/%.o, $(LIB_SOURCES))
 LIB_OBJECTS += $(patsubst %.cc, $(OBJ_DIR)/%.o, $(ROCKSDB_PLUGIN_SOURCES))
+LIB_OBJECTS += $(patsubst %.cc, $(OBJ_DIR)/%.o, $(ELASTIC_LIB_SOURCES))
 ifeq ($(HAVE_POWER8),1)
 LIB_OBJECTS += $(patsubst %.c, $(OBJ_DIR)/%.o, $(LIB_SOURCES_C))
 LIB_OBJECTS += $(patsubst %.S, $(OBJ_DIR)/%.o, $(LIB_SOURCES_ASM))
@@ -647,6 +648,7 @@ ALL_SOURCES  = $(filter-out util/build_version.cc, $(LIB_SOURCES)) $(TEST_LIB_SO
 ALL_SOURCES += $(TOOL_LIB_SOURCES) $(BENCH_LIB_SOURCES) $(CACHE_BENCH_LIB_SOURCES) $(ANALYZER_LIB_SOURCES) $(STRESS_LIB_SOURCES)
 ALL_SOURCES += $(TEST_MAIN_SOURCES) $(TOOL_MAIN_SOURCES) $(BENCH_MAIN_SOURCES)
 ALL_SOURCES += $(ROCKSDB_PLUGIN_SOURCES) $(ROCKSDB_PLUGIN_TESTS)
+ALL_SOURCES += $(ELASTIC_LIB_SOURCES)
 
 PLUGIN_TESTS = $(patsubst %.cc, %, $(notdir $(ROCKSDB_PLUGIN_TESTS)))
 TESTS = $(patsubst %.cc, %, $(notdir $(TEST_MAIN_SOURCES)))
@@ -793,7 +795,7 @@ SHARED_TEST_LIBRARY =  ${LIBNAME}_test$(LIBDEBUG).$(PLATFORM_SHARED_EXT)
 SHARED_TOOLS_LIBRARY = ${LIBNAME}_tools$(LIBDEBUG).$(PLATFORM_SHARED_EXT)
 SHARED_STRESS_LIBRARY = ${LIBNAME}_stress$(LIBDEBUG).$(PLATFORM_SHARED_EXT)
 
-ALL_SHARED_LIBS = $(SHARED1) $(SHARED2) $(SHARED3) $(SHARED4) $(SHARED_TEST_LIBRARY) $(SHARED_TOOLS_LIBRARY) $(SHARED_STRESS_LIBRARY)
+ALL_SHARED_LIBS = $(SHARED1) $(SHARED2) $(SHARED3) $(SHARED4) $(SHARED_TEST_LIBRARY) $(SHARED_TOOLS_LIBRARY) $(SHARED_STRESS_LIBRARY) $(ELASTIC_SHARED)
 
 ifeq ($(LIB_MODE),shared)
 LIBRARY=$(SHARED1)
@@ -878,16 +880,20 @@ $(SHARED2): $(SHARED4) $(SHARED3)
 	ln -fs $(SHARED4) $(SHARED2)
 $(SHARED3): $(SHARED4)
 	ln -fs $(SHARED4) $(SHARED3)
+ELASTIC_SHARED = ${LIBNAME}_elastic.$(PLATFORM_SHARED_EXT)
 
 endif   # PLATFORM_SHARED_VERSIONED
 $(SHARED4): $(LIB_OBJECTS)
 	$(AM_V_CCLD) $(CXX) $(PLATFORM_SHARED_LDFLAGS)$(SHARED3) $(LIB_OBJECTS) $(LDFLAGS) -o $@
+$(ELASTIC_SHARED): $(LIB_OBJECTS) $(ELASTIC_LIB_OBJECTS)
+	$(AM_V_CCLD) $(CXX) $(PLATFORM_SHARED_LDFLAGS)$(ELASTIC_SHARED) $(LIB_OBJECTS)  $(ELASTIC_LIB_OBJECTS) $(LDFLAGS) -o $@
 endif  # PLATFORM_SHARED_EXT
 
 .PHONY: check clean coverage ldb_tests package dbg gen-pc build_size \
 	release tags tags0 valgrind_check format static_lib shared_lib all \
 	rocksdbjavastatic rocksdbjava install install-static install-shared \
-	uninstall analyze tools tools_lib check-headers checkout_folly
+	uninstall analyze tools tools_lib check-headers checkout_folly \
+	elastic-static_lib elastic-shared_lib
 
 all: $(LIBRARY) $(BENCHMARKS) tools tools_lib test_libs $(TESTS)
 
@@ -1298,6 +1304,10 @@ check-sources:
 package:
 	bash build_tools/make_package.sh $(SHARED_MAJOR).$(SHARED_MINOR)
 
+elastic-static_lib: $(ELASTIC_STATIC_LIBRARY)
+
+elastic-shared_lib: $(ELASTIC_SHARED)
+
 # ---------------------------------------------------------------------------
 # 	Unit tests and tools
 # ---------------------------------------------------------------------------
@@ -1328,6 +1338,10 @@ $(SHARED_TOOLS_LIBRARY): $(TOOL_OBJECTS) $(SHARED1)
 $(SHARED_STRESS_LIBRARY): $(ANALYZE_OBJECTS) $(STRESS_OBJECTS) $(TESTUTIL) $(SHARED_TOOLS_LIBRARY) $(SHARED1)
 	$(AM_V_AR)rm -f $@ $(STATIC_STRESS_LIBRARY)
 	$(AM_SHARE)
+
+$(ELASTIC_STATIC_LIBRARY): $(LIB_OBJECTS) $(ELASTIC_LIB_OBJECTS)
+	$(AM_V_AR)rm -f $@ $(SHARED1) $(SHARED2) $(SHARED3) $(SHARED4) $(ELASTIC_SHARED)
+	$(AM_V_at)$(AR) $(ARFLAGS) $@ $(LIB_OBJECTS) $(ELASTIC_LIB_OBJECTS)
 
 librocksdb_env_basic_test.a: $(OBJ_DIR)/env/env_basic_test.o $(LIB_OBJECTS) $(TESTHARNESS)
 	$(AM_V_AR)rm -f $@
