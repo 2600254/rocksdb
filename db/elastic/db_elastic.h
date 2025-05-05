@@ -13,5 +13,7 @@ namespace ROCKSDB_NAMESPACE {
     void MaybeScheduleFlushOrCompaction();
   private:
     ElasticLSM* elastic_lsm_;
+
+  friend class ElasticLSM;
   };
 }
