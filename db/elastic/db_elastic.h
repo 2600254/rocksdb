@@ -14,6 +14,6 @@ namespace ROCKSDB_NAMESPACE {
   private:
     ElasticLSM* elastic_lsm_;
 
-  friend class ElasticLSM;
+  friend class ElasticLSMImpl;
   };
 }

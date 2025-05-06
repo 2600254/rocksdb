@@ -1,59 +1,44 @@
 #pragma once
 
+#include "rocksdb/elastic_lsm.h"
 #include "db/elastic/db_elastic.h"
 #include "db/elastic/task.h"
 #include "util/threadpool_imp.h"
 
 namespace ROCKSDB_NAMESPACE 
 {
-  struct ElasticLSMOptions
-  {
-    int max_background_threads = 32;
-    int min_tp_threads = 2;
-    int min_ap_threads = 2;
-    int min_compaction_threads = 2;
-  };
-  class ElasticLSM
+  class ElasticLSMImpl : public ElasticLSM
   {
   public:
-    ElasticLSM();
-    static Status Open(const Options& options, const std::string& name,
-      std::unique_ptr<DB>* dbptr);
+    ElasticLSMImpl(const ElasticLSMOptions& elastic_options);
+    ~ElasticLSMImpl();
+    static Status Open(const DBOptions& db_options, const ElasticLSMOptions& elastic_options,
+      const std::string& dbname, const std::vector<ColumnFamilyDescriptor>& column_families,
+      std::vector<ColumnFamilyHandle*>* handles,
+      std::unique_ptr<ElasticLSM>* dbptr, const bool seq_per_batch,
+      const bool batch_per_txn, const bool is_retry,
+      bool* can_retry);
 
     Status Put(const WriteOptions& options, ColumnFamilyHandle* column_family,
       const Slice& key, const Slice& value);
-    Status Put(const WriteOptions& options, const Slice& key, const Slice& value) {
-      return Put(options, db_->DefaultColumnFamily(), key, value);
-    }
 
     Status Delete(const WriteOptions& options,
       ColumnFamilyHandle* column_family,
       const Slice& key);
-    Status Delete(const WriteOptions& options, const Slice& key) {
-      return Delete(options, db_->DefaultColumnFamily(), key);
-    }
 
     Status Update(const WriteOptions& options, ColumnFamilyHandle* column_family,
       const Slice& key, const Slice& value);
-    Status Update(const WriteOptions& options,
-      const Slice& key, const Slice& value) {
-      return Update(options, db_->DefaultColumnFamily(), key, value);
-    }
 
     Status Get(const ReadOptions& _read_options,
       ColumnFamilyHandle* column_family, const Slice& key,
       std::string* value);
-    Status Get(const ReadOptions& _read_options, const Slice& key,
-      std::string* value) {
-      return Get(_read_options, db_->DefaultColumnFamily(), key, value);
-    }
 
     Status Scan(const ReadOptions& _read_options,
       ColumnFamilyHandle* column_family, const Slice &key, int record_count,
       const std::function<void(PinnableSlice*)>& func);
-    Status Scan(const ReadOptions& _read_options, const Slice &key, int record_count,
-      const std::function<void(PinnableSlice*)>& func) {
-      return Scan(_read_options, db_->DefaultColumnFamily(), key, record_count, func);
+    
+    ColumnFamilyHandle* DefaultColumnFamily() const override{
+      return db_->DefaultColumnFamily();
     }
 
   private:

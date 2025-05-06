@@ -1,19 +1,41 @@
 #include "db/elastic/elastic_lsm.h"
 
 namespace ROCKSDB_NAMESPACE { 
-  ElasticLSM::ElasticLSM() {
+  ElasticLSM::~ElasticLSM() = default;
+  Status ElasticLSM::Put(const WriteOptions& options, ColumnFamilyHandle* column_family,
+    const Slice& key, const Slice& value) {}
+    
+  Status ElasticLSM::Delete(const WriteOptions& options,
+      ColumnFamilyHandle* column_family,
+      const Slice& key) {}
+      
+  Status ElasticLSM::Update(const WriteOptions& options, ColumnFamilyHandle* column_family,
+      const Slice& key, const Slice& value) {}
+
+  Status ElasticLSM::Get(const ReadOptions& _read_options,
+      ColumnFamilyHandle* column_family, const Slice& key,
+      std::string* value) {}
+
+  Status ElasticLSM::Scan(const ReadOptions& _read_options,
+      ColumnFamilyHandle* column_family, const Slice &key, int record_count,
+      const std::function<void(PinnableSlice*)>& func) {}
+
+  ElasticLSMImpl::ElasticLSMImpl(const ElasticLSMOptions& elastic_options) :
+    options_(elastic_options) {
+
+  }
+  
+  ElasticLSMImpl::~ElasticLSMImpl() {
 
   }
 
-  Status ElasticLSM::Open(const DBOptions& db_options, const std::string& dbname,
-    const std::vector<ColumnFamilyDescriptor>& column_families,
+  Status ElasticLSMImpl::Open(const DBOptions& db_options, const ElasticLSMOptions& elastic_options,
+    const std::string& dbname, const std::vector<ColumnFamilyDescriptor>& column_families,
     std::vector<ColumnFamilyHandle*>* handles,
-    std::unique_ptr<DB>* dbptr, const bool seq_per_batch,
+    std::unique_ptr<ElasticLSM>* dbptr, const bool seq_per_batch,
     const bool batch_per_txn, const bool is_retry,
     bool* can_retry) {
       std::unique_ptr<DB> db;
-      DBElastic* dbelastic;
-
       auto s = DBImpl::Open(db_options, dbname, column_families, handles,
                             &db, seq_per_batch, batch_per_txn,
                             is_retry, can_retry);
@@ -27,20 +49,20 @@ namespace ROCKSDB_NAMESPACE {
       }
 
       // Wrap in ElasticLSM
-      ElasticLSM* elastic = new ElasticLSM();
+      ElasticLSMImpl* elastic = new ElasticLSMImpl(elastic_options);
       elastic->db_ = dbelastic;
       dbelastic->elastic_lsm_ = elastic;
       db.release();
 
       // Initialize thread pool
       elastic->tp_thread_pool_ = new ThreadPoolImpl();
-      elastic->tp_thread_pool_->SetBackgroundThreads(options->min_tp_threads);
+      elastic->tp_thread_pool_->SetBackgroundThreads(elastic->options_.min_tp_threads);
 
       elastic->ap_thread_pool_ = new ThreadPoolImpl();
-      elastic->ap_thread_pool_->SetBackgroundThreads(options->min_ap_threads);
+      elastic->ap_thread_pool_->SetBackgroundThreads(elastic->options_.min_ap_threads);
 
       elastic->background_thread_pool_ = new ThreadPoolImpl();
-      elastic->background_thread_pool_->SetBackgroundThreads(options->min_compaction_threads);
+      elastic->background_thread_pool_->SetBackgroundThreads(elastic->options_.min_compaction_threads);
 
       // Return as DB interface
       dbptr->reset(elastic);
@@ -48,7 +70,7 @@ namespace ROCKSDB_NAMESPACE {
       return Status::OK();
   }
 
-  Status ElasticLSM::Put(const WriteOptions& options, ColumnFamilyHandle* column_family,
+  Status ElasticLSMImpl::Put(const WriteOptions& options, ColumnFamilyHandle* column_family,
     const Slice& key, const Slice& value) {
       // Create task
       auto* t = new put_task(options, column_family, key, value);
@@ -66,7 +88,7 @@ namespace ROCKSDB_NAMESPACE {
       return Status::OK();
   }
 
-  Status ElasticLSM::Delete(const WriteOptions& options,
+  Status ElasticLSMImpl::Delete(const WriteOptions& options,
     ColumnFamilyHandle* column_family,
     const Slice& key) {
       auto* t = new delete_task(options, column_family, key);
@@ -83,7 +105,7 @@ namespace ROCKSDB_NAMESPACE {
       return Status::OK();
   }
 
-  Status ElasticLSM::Update(const WriteOptions& options, ColumnFamilyHandle* column_family,
+  Status ElasticLSMImpl::Update(const WriteOptions& options, ColumnFamilyHandle* column_family,
     const Slice& key, const Slice& value) {
       auto* t = new update_task(options, column_family, key, value);
 
@@ -99,7 +121,7 @@ namespace ROCKSDB_NAMESPACE {
       return Status::OK();
   }
 
-  Status ElasticLSM::Get(const ReadOptions& _read_options,
+  Status ElasticLSMImpl::Get(const ReadOptions& _read_options,
     ColumnFamilyHandle* column_family, const Slice& key,
     std::string* value) {
       auto* t = new get_task(_read_options, column_family, key, value);
@@ -116,7 +138,7 @@ namespace ROCKSDB_NAMESPACE {
       return Status::OK();
   }
 
-  Status ElasticLSM::Scan(const ReadOptions& _read_options,
+  Status ElasticLSMImpl::Scan(const ReadOptions& _read_options,
     ColumnFamilyHandle* column_family, const Slice &key, int record_count,
     const std::function<void(PinnableSlice*)>& func) {
       auto* t = new ap_task(_read_options, column_family, key, record_count, func);
@@ -132,15 +154,15 @@ namespace ROCKSDB_NAMESPACE {
 
       return Status::OK();
   }
-  void ElasticLSM::AdjustThreadPoolSize() {
+  void ElasticLSMImpl::AdjustThreadPoolSize() {
 
   }
 
-  void ElasticLSM::BGTPWork() {
+  void ElasticLSMImpl::BGTPWork() {
 
   }
 
-  void ElasticLSM::BGAPWork() {
+  void ElasticLSMImpl::BGAPWork() {
 
   }
 
